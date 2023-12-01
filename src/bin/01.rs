@@ -21,7 +21,7 @@ pub fn part_one(input: &str) -> Option<u32> {
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    let all_digits = HashMap::from([
+    let all_digits: HashMap<&str, u32> = HashMap::from([
         ("1", 1),
         ("2", 2),
         ("3", 3),
@@ -42,35 +42,21 @@ pub fn part_two(input: &str) -> Option<u32> {
         ("nine", 9),
     ]);
 
-    let lines_digits_indices: Vec<Vec<(usize, &str)>> = input
-        .lines()
-        .map(|line| {
-            all_digits
-                .keys()
-                .flat_map(|k| line.match_indices(k))
-                .sorted()
-                .collect()
-        })
-        .collect();
+    let cal_values = input.lines().map(|line| {
+        all_digits
+            .iter()
+            .flat_map(|(&k, &v)| line.match_indices(k).map(move |(i, _)| (i, v)))
+            .sorted_by_key(|(index, _)| *index)
+            .with_position()
+            .filter_map(|(position, (_, value))| match position {
+                itertools::Position::First => Some(value * 10),
+                itertools::Position::Last => Some(value),
+                _ => None,
+            })
+            .sum::<u32>()
+    });
 
-    let mut result: u32 = 0;
-    for line in lines_digits_indices {
-        let (_, k): &(usize, &str) = line.first()?;
-        result += all_digits[k] * 10;
-
-        // starting from the left, remove any match that overlaps with any previous match
-        let mut last_digit = "";
-        let mut next_valid_position: usize = 0;
-        for (start, digit) in line {
-            if start < next_valid_position {
-                continue;
-            }
-            last_digit = digit;
-            next_valid_position = start + digit.len();
-        }
-        result += all_digits.get(last_digit)?;
-    }
-    Some(result)
+    Some(cal_values.sum::<u32>())
 }
 
 #[cfg(test)]

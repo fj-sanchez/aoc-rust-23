@@ -1,9 +1,9 @@
-use std::{cmp::Ordering, ops::Range, vec};
+use std::{cmp::Ordering, ops::Range};
 
 use nom::{
     bytes::complete::tag,
     character::complete::space0,
-    character::complete::{line_ending, u32},
+    character::complete::{line_ending, u64},
     combinator::opt,
     error::Error,
     multi::many0,
@@ -15,12 +15,12 @@ advent_of_code::solution!(6);
 
 #[derive(Debug)]
 struct Race {
-    time: u32,
-    distance: u32,
+    time: u64,
+    distance: u64,
 }
 
 impl Race {
-    fn pushtimes(&self) -> Range<i32> {
+    fn pushtimes(&self) -> Range<i64> {
         let a: f64 = 1.;
         let b: f64 = -(self.time as f64);
         let c: f64 = self.distance as f64;
@@ -28,42 +28,42 @@ impl Race {
         // discriminant
         let d = b.powi(2) - 4. * a * c;
 
-        match (d as i32).cmp(&0) {
+        match (d as i64).cmp(&0) {
             Ordering::Less => 0..0,
             Ordering::Equal => {
-                let x: i32 = (-b / (2. * a)) as i32;
+                let x: i64 = (-b / (2. * a)) as i64;
                 x..x + 1
             }
             Ordering::Greater => {
                 let sqrt = f64::sqrt(d as f64);
 
-                let x1: i32 = ((-b - sqrt) / (2. * a) + 10. * f64::EPSILON).ceil() as i32;
-                let x2: i32 = ((-b + sqrt) / (2. * a) - 10. * f64::EPSILON).floor() as i32;
+                let x1: i64 = ((-b - sqrt) / (2. * a) + 10. * f64::EPSILON).ceil() as i64;
+                let x2: i64 = ((-b + sqrt) / (2. * a) - 10. * f64::EPSILON).floor() as i64;
                 x1..x2 + 1
             }
         }
     }
 }
 
-fn parse_numbers(input: &str) -> IResult<&str, Vec<u32>> {
-    let number = preceded(space0, u32);
+fn parse_numbers(input: &str) -> IResult<&str, Vec<u64>> {
+    let number = preceded(space0, u64);
     let (i, numbers) = terminated(many0(number), opt(line_ending))(input)?;
     Ok((i, numbers))
 }
 
-fn parse_times(input: &str) -> IResult<&str, Vec<u32>> {
+fn parse_times(input: &str) -> IResult<&str, Vec<u64>> {
     let header = tag("Time:");
     let (i, times) = preceded(header, parse_numbers)(input)?;
     Ok((i, times))
 }
 
-fn parse_distances(input: &str) -> IResult<&str, Vec<u32>> {
+fn parse_distances(input: &str) -> IResult<&str, Vec<u64>> {
     let header = tag("Distance:");
     let (i, distances) = preceded(header, parse_numbers)(input)?;
     Ok((i, distances))
 }
 
-fn parse_document(input: &str) -> IResult<&str, (Vec<u32>, Vec<u32>)> {
+fn parse_document(input: &str) -> IResult<&str, (Vec<u64>, Vec<u64>)> {
     let (i, (times, distances)) = pair(parse_times, parse_distances)(input)?;
     Ok((i, (times, distances)))
 }
@@ -93,7 +93,7 @@ pub fn part_one(input: &str) -> Option<u32> {
         races
             .iter()
             .map(|race| {
-                let r: Range<i32> = race.pushtimes();
+                let r: Range<i64> = race.pushtimes();
                 let p: u32 = r.count() as u32;
                 p
             })

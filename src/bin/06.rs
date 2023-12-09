@@ -35,7 +35,7 @@ impl Race {
                 x..x + 1
             }
             Ordering::Greater => {
-                let sqrt = f64::sqrt(d as f64);
+                let sqrt = f64::sqrt(d);
 
                 let x1: i64 = ((-b - sqrt) / (2. * a) + 10. * f64::EPSILON).ceil() as i64;
                 let x2: i64 = ((-b + sqrt) / (2. * a) - 10. * f64::EPSILON).floor() as i64;
@@ -73,7 +73,7 @@ fn parse_input(input: &str) -> Result<Vec<Race>, Err> {
     match parse_document(input).finish() {
         Ok((_, (times, distances))) => Ok(times
             .into_iter()
-            .zip(distances.into_iter())
+            .zip(distances)
             .map(|(t, d)| Race {
                 time: t,
                 distance: d,
@@ -102,7 +102,7 @@ pub fn part_one(input: &str) -> Option<u32> {
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    let sanitized_input = input.replace(" ", "");
+    let sanitized_input = input.replace(' ', "");
     part_one(&sanitized_input)
 }
 

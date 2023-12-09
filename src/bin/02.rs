@@ -41,7 +41,7 @@ pub fn part_one(input: &str) -> Option<u32> {
             .enumerate()
             .filter_map(|(game_index, game_result)| {
                 (game_result.iter().all(|(c, v)| v <= &max_available[c]))
-                    .then(|| game_index as u32 + 1)
+                    .then_some(game_index as u32 + 1)
             })
             .sum(),
     )

@@ -8,7 +8,7 @@ pub fn part_one(input: &str) -> Option<u32> {
     let symbols_re: Regex = Regex::new(r"[^a-zA-Z0-9.]").unwrap();
     let numbers_re: Regex = Regex::new(r"\d+").unwrap();
 
-    let linear_input = input.replace(&"\n", "");
+    let linear_input = input.replace('\n', "");
     let valid_positions: HashSet<i32> = symbols_re
         .find_iter(&linear_input)
         .flat_map(|symbol| {
@@ -39,7 +39,7 @@ pub fn part_two(input: &str) -> Option<u32> {
     let symbols_re: Regex = Regex::new(r"\*").unwrap();
     let numbers_re: Regex = Regex::new(r"\d+").unwrap();
 
-    let linear_input = input.replace(&"\n", "");
+    let linear_input = input.replace('\n', "");
     let gears_valid_positions: HashMap<i32, HashSet<i32>> = symbols_re
         .find_iter(&linear_input)
         .map(|symbol| {
@@ -63,14 +63,15 @@ pub fn part_two(input: &str) -> Option<u32> {
                     .any(|pos| valid_positions.contains(&(pos as i32)))
                 {
                     acc.entry(gear)
-                        .or_insert(Vec::new())
+                        .or_default()
                         .push(num.as_str().parse::<u32>().unwrap());
                 }
             }
             acc
         })
         .values()
-        .filter_map(|v| (v.len() == 2).then(|| v.iter().product::<u32>()))
+        .filter(|&v| (v.len() == 2))
+        .map(|v| v.iter().product::<u32>())
         .sum();
 
     Some(result)

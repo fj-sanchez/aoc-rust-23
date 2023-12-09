@@ -165,12 +165,11 @@ pub fn part_two(input: &str) -> Option<u32> {
                 .cards
                 .iter()
                 .zip(other.cards.iter())
-                .skip_while(|(&ref a, &ref b)| a == b)
-                .next()
-                .map(|(&ref a, &ref b)| match (a, b) {
+                .find(|(a, b)| a != b)
+                .map(|(a, b)| match (a, b) {
                     (Card::J, _) => Ordering::Less,
                     (_, Card::J) => Ordering::Greater,
-                    (a, b) => Card::cmp(&a, &b),
+                    (a, b) => Card::cmp(a, b),
                 })
                 .unwrap_or(Ordering::Equal),
             ord => ord,

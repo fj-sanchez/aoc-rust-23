@@ -10,11 +10,17 @@ publish = false
 [lib]
 doctest = false
 
+[profile.dhat]
+inherits = "release"
+debug = 1
+
 [features]
+today = ["chrono"]
 test_lib = []
 dhat-heap = ["dhat"]
 
 [dependencies]
+chrono = { version = "0.4.31", optional = true }
 pico-args = "0.5.0"
 dhat = { version = "0.3.2", optional = true }
 itertools = "0.12.0"
@@ -22,7 +28,3 @@ regex = "1.10.2"
 nom = "7.1.3"
 num = "0.4.1"
 geo = "0.27.0"
-
-[profile.dhat]
-inherits = "release"
-debug = 1

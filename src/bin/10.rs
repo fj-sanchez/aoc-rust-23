@@ -24,8 +24,8 @@ fn _pretty_input(input: &str) -> String {
 #[derive(Debug, Eq, PartialEq, Hash)]
 // X increases left to right
 struct Coord {
-    x: usize,
-    y: usize,
+    x: i32,
+    y: i32,
 }
 
 type Pipe = char;
@@ -56,17 +56,11 @@ fn get_start_pipe_type(map: &Map, start_coords: &Coord) -> Pipe {
     let neighbours_deltas: Vec<(i32, i32)> = get_neighbours_pipes_coords(start_coords, map)
         .iter()
         .filter(|&c| {
-            get_next_pipes_delta(map[c.y][c.x]).iter().any(|&(dx, dy)| {
-                (c.x as i32) + dx == start_coords.x as i32
-                    && (c.y as i32) + dy == start_coords.y as i32
-            })
+            get_next_pipes_delta(map[c.y as usize][c.x as usize])
+                .iter()
+                .any(|&(dx, dy)| c.x + dx == start_coords.x && c.y + dy == start_coords.y)
         })
-        .map(|n| {
-            (
-                (n.x as i32) - (start_coords.x as i32),
-                (n.y as i32) - (start_coords.y as i32),
-            )
-        })
+        .map(|n| (n.x - start_coords.x, n.y - start_coords.y))
         .collect();
     *pipe_shapes
         .iter()
@@ -83,27 +77,19 @@ fn get_neighbours_pipes_coords(coords: &Coord, map: &Vec<Vec<char>>) -> Vec<Coor
     let check_deltas: [(i32, i32); 4] = [(0, -1), (1, 0), (0, 1), (-1, 0)];
     check_deltas
         .iter()
-        .filter_map(|&(dx, dy)| {
-            match (
-                (coords.x as i32).checked_add(dx),
-                (coords.y as i32).checked_add(dy),
-            ) {
-                (Some(x), Some(y)) if (x as usize) < map[0].len() && (y as usize) < map.len() => {
-                    Some(Coord {
-                        x: (x as usize),
-                        y: (y as usize),
-                    })
-                }
-                _ => return None,
+        .filter_map(|&(dx, dy)| match (coords.x + dx, coords.y + dy) {
+            (x, y) if (x as usize) < map[0].len() && (y as usize) < map.len() => {
+                Some(Coord { x, y })
             }
+            _ => return None,
         })
-        .filter(|c| map[c.y][c.x] != '.')
+        .filter(|c| map[c.y as usize][c.x as usize] != '.')
         .collect()
 }
 
 fn get_map(input: &str, start_coords: &Coord) -> Map {
     let (_, mut map) = parse_input(input).finish().unwrap();
-    map[start_coords.y][start_coords.x] = get_start_pipe_type(&map, start_coords);
+    map[start_coords.y as usize][start_coords.x as usize] = get_start_pipe_type(&map, start_coords);
     map
 }
 
@@ -111,7 +97,7 @@ fn get_start_coordinate(input: &str) -> Coord {
     let width = input.find('\n').unwrap();
     let start_coord = input
         .find("S")
-        .map(|index| div_rem(index, width + 1))
+        .map(|index| div_rem(index as i32, (width + 1) as i32))
         .map(|(y, x)| Coord { x, y })
         .unwrap();
     start_coord
@@ -123,11 +109,11 @@ fn get_pipe_loop_coordinates(start_coord: Coord, map: Vec<Vec<char>>) -> HashSet
     stack.push_back(start_coord);
     while let Some(coords) = stack.pop_front() {
         if !visited.contains(&coords) {
-            let deltas = get_next_pipes_delta(map[coords.y][coords.x]);
-            deltas.iter().for_each(|delta| {
+            let deltas = get_next_pipes_delta(map[coords.y as usize][coords.x as usize]);
+            deltas.iter().for_each(|(dx, dy)| {
                 stack.push_back(Coord {
-                    x: ((coords.x as i32) + delta.0) as usize,
-                    y: ((coords.y as i32) + delta.1) as usize,
+                    x: coords.x + dx,
+                    y: coords.y + dy,
                 })
             });
             visited.insert(coords);

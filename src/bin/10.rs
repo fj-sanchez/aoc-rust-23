@@ -1,6 +1,5 @@
 use std::collections::{HashSet, VecDeque};
 
-use itertools::Itertools;
 use nom::{
     character::complete::{line_ending, one_of},
     multi::{many1, separated_list1},
@@ -53,21 +52,23 @@ fn get_next_pipes_delta(pipe: Pipe) -> &'static [(i32, i32); 2] {
 
 fn get_start_pipe_type(map: &Map, start_coords: &Coord) -> Pipe {
     let pipe_shapes = ['-', '|', 'F', 'L', 'J', '7'];
+
     let neighbours_deltas: Vec<(i32, i32)> = get_neighbours_pipes_coords(start_coords, map)
         .iter()
         .filter(|&c| {
             get_next_pipes_delta(map[c.y as usize][c.x as usize])
                 .iter()
-                .any(|&(dx, dy)| c.x + dx == start_coords.x && c.y + dy == start_coords.y)
+                .any(|&(dx, dy)| (c.x + dx, c.y + dy) == (start_coords.x, start_coords.y))
         })
         .map(|n| (n.x - start_coords.x, n.y - start_coords.y))
         .collect();
+
     *pipe_shapes
         .iter()
         .find(|&&pipe| {
             get_next_pipes_delta(pipe)
                 .iter()
-                .all(|delta| neighbours_deltas.iter().contains(delta))
+                .all(|&delta| neighbours_deltas.contains(&delta))
         })
         .unwrap()
 }
@@ -105,18 +106,19 @@ fn get_start_coordinate(input: &str) -> Coord {
 fn get_pipe_loop_coordinates(start_coord: Coord, map: &[Vec<char>]) -> HashSet<Coord> {
     let mut visited: HashSet<Coord> = HashSet::new();
     let mut stack: VecDeque<Coord> = VecDeque::new();
+
     stack.push_back(start_coord);
     while let Some(coords) = stack.pop_front() {
-        if !visited.contains(&coords) {
-            let deltas = get_next_pipes_delta(map[coords.y as usize][coords.x as usize]);
-            deltas.iter().for_each(|(dx, dy)| {
-                stack.push_back(Coord {
-                    x: coords.x + dx,
-                    y: coords.y + dy,
-                })
-            });
-            visited.insert(coords);
+        if visited.contains(&coords) {
+            continue;
         }
+        let deltas = get_next_pipes_delta(map[coords.y as usize][coords.x as usize]);
+        stack.extend(deltas.iter().map(|(dx, dy)| Coord {
+            x: coords.x + dx,
+            y: coords.y + dy,
+        }));
+
+        visited.insert(coords);
     }
     visited
 }

@@ -36,23 +36,18 @@ pub fn part_one(input: &str) -> Option<u32> {
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    let (_, sequences) = parse_input(input).unwrap();
+    let rev_input = input
+        .lines()
+        .map(|line| {
+            line.split_whitespace()
+                .rev()
+                .collect::<Vec<&str>>()
+                .join(" ")
+        })
+        .collect::<Vec<String>>()
+        .join("\n");
 
-    Some(
-        sequences
-            .iter()
-            .map(|seq| {
-                let mut stack: Vec<i64> = Vec::new();
-                let mut acc: Vec<i64> = seq.clone();
-
-                while acc.iter().any(|&v| v != 0) {
-                    stack.push(*acc.first().unwrap());
-                    acc = acc.iter().tuple_windows().map(|(a, b)| b - a).collect();
-                }
-                stack.iter().rev().fold(0, |acc, v| v - acc)
-            })
-            .sum::<i64>() as u32,
-    )
+    part_one(rev_input.as_str())
 }
 
 #[cfg(test)]

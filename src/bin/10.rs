@@ -138,56 +138,42 @@ pub fn part_two(input: &str) -> Option<u32> {
     let height = map.len() as i32;
     let width = map[0].len() as i32;
 
-    let mut count = 0u32;
-    for y in 0..height {
-        for x in 0..width {
-            if !visited.contains(&Coord { x, y }) {
-                let mut crossings = 0u32;
-                let mut prev = '.';
-                for next_right in x + 1..width {
-                    if !visited.contains(&Coord { x: next_right, y }) {
-                        continue;
+    let count: usize = (0..height)
+        .flat_map(|y| (0..width).map(move |x| Coord { x, y }))
+        .filter(|coord| !visited.contains(coord))
+        .map(|coord| {
+            let mut prev = '.';
+            (coord.x + 1..width)
+                .filter(|&next_right| {
+                    visited.contains(&Coord {
+                        x: next_right,
+                        y: coord.y,
+                    })
+                })
+                .filter(|&next_right| {
+                    let pipe = map[coord.y as usize][next_right as usize];
+                    match (prev, pipe) {
+                        (_, '-') => false,
+                        ('F', '7') | ('L', 'J') => {
+                            prev = pipe;
+                            true
+                        }
+                        ('F', 'J') | ('L', '7') => {
+                            prev = pipe;
+                            false
+                        }
+                        (_, _) => {
+                            prev = pipe;
+                            true
+                        }
                     }
+                })
+                .count()
+                % 2
+        })
+        .sum();
 
-                    let pipe = map[y as usize][next_right as usize];
-                    crossings += match (prev, pipe) {
-                        (_, '-') => 0,
-                        ('F', '7') => {
-                            prev = pipe;
-                            1
-                        }
-                        ('F', 'J') => {
-                            prev = pipe;
-                            0
-                        }
-                        ('L', 'J') => {
-                            prev = pipe;
-                            1
-                        }
-                        ('L', '7') => {
-                            prev = pipe;
-                            0
-                        }
-                        (_, pipe) => {
-                            prev = pipe;
-                            1
-                        }
-                    };
-                }
-                count += crossings % 2;
-                // if crossings % 2 == 1 {
-                //     count += 1;
-                //     map[y as usize][x as usize] = 'I'
-                // } else {
-                //     map[y as usize][x as usize] = 'O'
-                // }
-            }
-        }
-    }
-    // let pretty_map: String = map.iter().map(|row| row.iter().join("")).join("\n");
-    // println!("{}", _pretty_input(pretty_map.as_str()));
-
-    Some(count)
+    Some(count as u32)
 }
 
 #[cfg(test)]

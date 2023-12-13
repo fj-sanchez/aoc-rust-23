@@ -13,12 +13,12 @@ advent_of_code::solution!(10);
 fn _pretty_input(input: &str) -> String {
     input
         .to_string()
-        .replace("-", "═")
-        .replace("L", "╚")
-        .replace("J", "╝")
-        .replace("F", "╔")
-        .replace("7", "╗")
-        .replace("|", "║")
+        .replace('-', "═")
+        .replace('L', "╚")
+        .replace('J', "╝")
+        .replace('F', "╔")
+        .replace('7', "╗")
+        .replace('|', "║")
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
@@ -64,12 +64,11 @@ fn get_start_pipe_type(map: &Map, start_coords: &Coord) -> Pipe {
         .collect();
     *pipe_shapes
         .iter()
-        .skip_while(|&&pipe| {
-            !get_next_pipes_delta(pipe)
+        .find(|&&pipe| {
+            get_next_pipes_delta(pipe)
                 .iter()
                 .all(|delta| neighbours_deltas.iter().contains(delta))
         })
-        .next()
         .unwrap()
 }
 
@@ -81,7 +80,7 @@ fn get_neighbours_pipes_coords(coords: &Coord, map: &Vec<Vec<char>>) -> Vec<Coor
             (x, y) if (x as usize) < map[0].len() && (y as usize) < map.len() => {
                 Some(Coord { x, y })
             }
-            _ => return None,
+            _ => None,
         })
         .filter(|c| map[c.y as usize][c.x as usize] != '.')
         .collect()
@@ -95,15 +94,15 @@ fn get_map(input: &str, start_coords: &Coord) -> Map {
 
 fn get_start_coordinate(input: &str) -> Coord {
     let width = input.find('\n').unwrap();
-    let start_coord = input
-        .find("S")
+    
+    input
+        .find('S')
         .map(|index| div_rem(index as i32, (width + 1) as i32))
         .map(|(y, x)| Coord { x, y })
-        .unwrap();
-    start_coord
+        .unwrap()
 }
 
-fn get_pipe_loop_coordinates(start_coord: Coord, map: &Vec<Vec<char>>) -> HashSet<Coord> {
+fn get_pipe_loop_coordinates(start_coord: Coord, map: &[Vec<char>]) -> HashSet<Coord> {
     let mut visited: HashSet<Coord> = HashSet::new();
     let mut stack: VecDeque<Coord> = VecDeque::new();
     stack.push_back(start_coord);

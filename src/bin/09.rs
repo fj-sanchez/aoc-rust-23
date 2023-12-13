@@ -47,7 +47,7 @@ pub fn part_two(input: &str) -> Option<u32> {
         .collect::<Vec<String>>()
         .join("\n");
 
-    part_one(&rev_input.as_str())
+    part_one(rev_input.as_str())
 }
 
 #[cfg(test)]

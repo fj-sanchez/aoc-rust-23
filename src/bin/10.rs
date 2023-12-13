@@ -103,7 +103,7 @@ fn get_start_coordinate(input: &str) -> Coord {
     start_coord
 }
 
-fn get_pipe_loop_coordinates(start_coord: Coord, map: Vec<Vec<char>>) -> HashSet<Coord> {
+fn get_pipe_loop_coordinates(start_coord: Coord, map: &Vec<Vec<char>>) -> HashSet<Coord> {
     let mut visited: HashSet<Coord> = HashSet::new();
     let mut stack: VecDeque<Coord> = VecDeque::new();
     stack.push_back(start_coord);
@@ -125,14 +125,69 @@ fn get_pipe_loop_coordinates(start_coord: Coord, map: Vec<Vec<char>>) -> HashSet
 pub fn part_one(input: &str) -> Option<u32> {
     let start_coord = get_start_coordinate(input);
     let map = get_map(input, &start_coord);
-    let visited = get_pipe_loop_coordinates(start_coord, map);
+    let visited = get_pipe_loop_coordinates(start_coord, &map);
 
     Some((visited.len() / 2) as u32)
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    // let pipe_loop_coordinates = fun_name(input);
-    Some(0)
+pub fn part_two(input: &str) -> Option<u32> {
+    let start_coord = get_start_coordinate(input);
+    let map = get_map(input, &start_coord);
+    let visited = get_pipe_loop_coordinates(start_coord, &map);
+
+    let height = map.len() as i32;
+    let width = map[0].len() as i32;
+
+    let mut count = 0u32;
+    for y in 0..height {
+        for x in 0..width {
+            if !visited.contains(&Coord { x, y }) {
+                let mut crossings = 0u32;
+                let mut prev = '.';
+                for next_right in x + 1..width {
+                    if !visited.contains(&Coord { x: next_right, y }) {
+                        continue;
+                    }
+
+                    let pipe = map[y as usize][next_right as usize];
+                    crossings += match (prev, pipe) {
+                        (_, '-') => 0,
+                        ('F', '7') => {
+                            prev = pipe;
+                            1
+                        }
+                        ('F', 'J') => {
+                            prev = pipe;
+                            0
+                        }
+                        ('L', 'J') => {
+                            prev = pipe;
+                            1
+                        }
+                        ('L', '7') => {
+                            prev = pipe;
+                            0
+                        }
+                        (_, pipe) => {
+                            prev = pipe;
+                            1
+                        }
+                    };
+                }
+                count += crossings % 2;
+                // if crossings % 2 == 1 {
+                //     count += 1;
+                //     map[y as usize][x as usize] = 'I'
+                // } else {
+                //     map[y as usize][x as usize] = 'O'
+                // }
+            }
+        }
+    }
+    // let pretty_map: String = map.iter().map(|row| row.iter().join("")).join("\n");
+    // println!("{}", _pretty_input(pretty_map.as_str()));
+
+    Some(count)
 }
 
 #[cfg(test)]
@@ -147,7 +202,13 @@ mod tests {
 
     #[test]
     fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        let result = part_two(&advent_of_code::template::read_file_part(
+            "examples", DAY, 2,
+        ));
+        assert_eq!(result, Some(4));
+        let result = part_two(&advent_of_code::template::read_file_part(
+            "examples", DAY, 3,
+        ));
+        assert_eq!(result, Some(4));
     }
 }

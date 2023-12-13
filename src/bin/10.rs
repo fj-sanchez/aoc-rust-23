@@ -94,7 +94,7 @@ fn get_map(input: &str, start_coords: &Coord) -> Map {
 
 fn get_start_coordinate(input: &str) -> Coord {
     let width = input.find('\n').unwrap();
-    
+
     input
         .find('S')
         .map(|index| div_rem(index as i32, (width + 1) as i32))

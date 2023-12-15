@@ -1,15 +1,12 @@
-use std::{
-    ops::Range,
-    str::FromStr,
-};
+use std::{ops::Range, str::FromStr};
 
 use itertools::Itertools;
 use nom::{
-    bytes::complete::{tag},
+    bytes::complete::tag,
     character::complete::{line_ending, space0, u64},
     combinator::opt,
     error::Error,
-    multi::{many0 },
+    multi::many0,
     sequence::{preceded, terminated, tuple},
     Finish, IResult,
 };
@@ -32,6 +29,43 @@ impl RangeMapping {
         } else {
             None
         }
+    }
+
+    fn destination_ranges(&self, range: &Range<u64>) -> (Vec<Range<u64>>,Vec<Range<u64>>) {
+        let mut ranges_to_map: Vec<Range<u64>> = Vec::new();
+        let mut remaining: Vec<Range<u64>> = Vec::new();
+
+        // 1. no-overlap or complete overlap, just map the input range
+        // 2. partial overlap on the left, return 2 ranges non-overlapping and overlapping
+        // 3. partial overlap on the right, return 2 ranges overlapping and non-overlapping
+        // 4. this fully contained in the input range, return 3 ranges, 2 non-overlapping and the overlapping
+        if range.end < self.source.start || range.start > self.source.end {
+            remaining.push(range.clone());
+        } else if self.source.contains(&range.start) && self.source.contains(&range.end) {
+            ranges_to_map.push(range.clone());
+        } else if self.source.contains(&range.end) {
+            remaining.push(range.start..self.source.start);
+            ranges_to_map.push(self.source.start..range.end);
+        } else if self.source.contains(&range.start) {
+            ranges_to_map.push(range.start..self.source.end);
+            remaining.push(self.source.end..range.end);
+        } else {
+            remaining.extend([
+                range.start..self.source.start,
+                self.source.end..range.end,
+            ]);
+            ranges_to_map.push(self.source.clone());
+        }
+
+        let mapped_ranges = ranges_to_map
+        .into_iter()
+        .map(|r| {
+            self.destination_value(r.start).unwrap_or(r.start)
+                ..self.destination_value(r.end).unwrap_or(r.end)
+        })
+        .collect();
+        
+        (remaining, mapped_ranges) 
     }
 }
 
@@ -70,9 +104,8 @@ impl FromStr for RangeMapping {
     }
 }
 
-pub fn part_one(input: &str) -> Option<u32> {
-    let (_, seeds) = parse_seeds(input).ok()?;
-
+fn parse_inputs(input: &str) -> (Vec<u64>, Vec<Vec<RangeMapping>>) {
+    let (_, seeds) = parse_seeds(input).unwrap();
     let mapping_blocks: Vec<Vec<RangeMapping>> = input
         .split_terminator("\n\n")
         .skip(1)
@@ -84,6 +117,11 @@ pub fn part_one(input: &str) -> Option<u32> {
                 .collect_vec()
         })
         .collect_vec();
+    (seeds, mapping_blocks)
+}
+
+pub fn part_one(input: &str) -> Option<u32> {
+    let (seeds, mapping_blocks) = parse_inputs(input);
 
     let results: Vec<u64> = seeds
         .iter()
@@ -101,8 +139,33 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(results.into_iter().min().unwrap() as u32)
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u32> {
+    let (seeds, mapping_blocks) = parse_inputs(input);
+    let seed_ranges: Vec<Range<u64>> = seeds
+        .iter()
+        .tuples::<(_, _)>()
+        .map(|(&start, &length)| start..start + length)
+        .collect();
+
+    let results: Vec<Range<u64>> = mapping_blocks
+        .iter()
+        .fold(seed_ranges, |mut acc, mapping_block| {
+            let mut unmapped: Vec<Range<u64>> = Vec::new();
+            let mut mapped: Vec<Range<u64>> = Vec::new();
+            for rm in mapping_block {
+                for r in &acc.clone() {
+                    let (remaining, mapped_) = rm.destination_ranges(&r);
+                    mapped.extend(mapped_);
+                    unmapped.extend(remaining);
+                }
+                (acc, unmapped) = (unmapped, acc);
+                unmapped.clear();
+            }
+            acc.append(&mut mapped);
+            acc
+        });
+
+    Some(results.iter().map(|r| r.start).min().unwrap() as u32)
 }
 
 #[cfg(test)]

@@ -31,7 +31,7 @@ impl RangeMapping {
         }
     }
 
-    fn destination_ranges(&self, range: &Range<u64>) -> (Vec<Range<u64>>,Vec<Range<u64>>) {
+    fn destination_ranges(&self, range: &Range<u64>) -> (Vec<Range<u64>>, Vec<Range<u64>>) {
         let mut ranges_to_map: Vec<Range<u64>> = Vec::new();
         let mut remaining: Vec<Range<u64>> = Vec::new();
 
@@ -39,33 +39,30 @@ impl RangeMapping {
         // 2. partial overlap on the left, return 2 ranges non-overlapping and overlapping
         // 3. partial overlap on the right, return 2 ranges overlapping and non-overlapping
         // 4. this fully contained in the input range, return 3 ranges, 2 non-overlapping and the overlapping
-        if range.end < self.source.start || range.start > self.source.end {
+        if range.end <= self.source.start || range.start >= self.source.end {
             remaining.push(range.clone());
-        } else if self.source.contains(&range.start) && self.source.contains(&range.end) {
-            ranges_to_map.push(range.clone());
-        } else if self.source.contains(&range.end) {
+        } else if self.source.contains(&range.start) && self.source.contains(&(range.end - 1)) {
+            ranges_to_map.push(range.start..range.end);
+        } else if self.source.contains(&(range.end)) {
             remaining.push(range.start..self.source.start);
             ranges_to_map.push(self.source.start..range.end);
         } else if self.source.contains(&range.start) {
             ranges_to_map.push(range.start..self.source.end);
             remaining.push(self.source.end..range.end);
         } else {
-            remaining.extend([
-                range.start..self.source.start,
-                self.source.end..range.end,
-            ]);
+            remaining.extend([range.start..self.source.start, self.source.end..range.end]);
             ranges_to_map.push(self.source.clone());
         }
 
         let mapped_ranges = ranges_to_map
-        .into_iter()
-        .map(|r| {
-            self.destination_value(r.start).unwrap_or(r.start)
-                ..self.destination_value(r.end).unwrap_or(r.end)
-        })
-        .collect();
-        
-        (remaining, mapped_ranges) 
+            .into_iter()
+            .map(|r| {
+                self.destination_value(r.start).unwrap_or(r.start)
+                    ..self.destination_value(r.end - 1).unwrap_or(r.end - 1) + 1
+            })
+            .collect();
+
+        (remaining, mapped_ranges)
     }
 }
 
@@ -113,7 +110,7 @@ fn parse_inputs(input: &str) -> (Vec<u64>, Vec<Vec<RangeMapping>>) {
             mapping_block
                 .lines()
                 .skip(1)
-                .map(|l| RangeMapping::from_str(&l).ok().unwrap())
+                .map(|l| RangeMapping::from_str(l).ok().unwrap())
                 .collect_vec()
         })
         .collect_vec();
@@ -130,7 +127,7 @@ pub fn part_one(input: &str) -> Option<u32> {
                 mapping_block
                     .iter()
                     .find_map(|r| r.destination_value(acc))
-                    .unwrap_or_else(|| acc)
+                    .unwrap_or(acc)
             });
             result
         })
@@ -147,29 +144,34 @@ pub fn part_two(input: &str) -> Option<u32> {
         .map(|(&start, &length)| start..start + length)
         .collect();
 
-    let results: Vec<Range<u64>> = mapping_blocks
-        .iter()
-        .fold(seed_ranges, |mut acc, mapping_block| {
-            let mut unmapped: Vec<Range<u64>> = Vec::new();
-            let mut mapped: Vec<Range<u64>> = Vec::new();
-            for rm in mapping_block {
-                for r in &acc.clone() {
-                    let (remaining, mapped_) = rm.destination_ranges(&r);
-                    mapped.extend(mapped_);
-                    unmapped.extend(remaining);
+    let results: Vec<Range<u64>> =
+        mapping_blocks
+            .iter()
+            .fold(seed_ranges.clone(), |acc, mapping_block| {
+                let mut mapped: Vec<Range<u64>> = Vec::new();
+                let mut pending_mapping = acc.clone();
+                for rm in mapping_block {
+                    let mut unmapped: Vec<Range<u64>> = Vec::new();
+                    for r in &pending_mapping {
+                        let (remaining, destination_ranges) = rm.destination_ranges(r);
+                        mapped.extend(destination_ranges);
+                        unmapped.extend(remaining);
+                    }
+                    pending_mapping = unmapped.clone();
                 }
-                (acc, unmapped) = (unmapped, acc);
-                unmapped.clear();
-            }
-            acc.append(&mut mapped);
-            acc
-        });
+                pending_mapping.append(&mut mapped);
+                pending_mapping.dedup();
+                pending_mapping
+            });
 
-    Some(results.iter().map(|r| r.start).min().unwrap() as u32)
+    let x: Vec<u64> = results.iter().map(|r| r.start).sorted().collect();
+    Some(*x.iter().min().unwrap() as u32)
 }
 
 #[cfg(test)]
 mod tests {
+    use std::vec;
+
     use super::*;
 
     #[test]
@@ -182,5 +184,32 @@ mod tests {
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
         assert_eq!(result, Some(46));
+    }
+
+    #[test]
+    fn test_range_decomposition() {
+        let rm = RangeMapping {
+            destination: 105..115,
+            source: 5..15,
+        };
+        let v = rm.destination_ranges(&(0..5));
+        assert_eq!(v.0[0], (0..5));
+        assert!(v.1.is_empty());
+
+        let v = rm.destination_ranges(&(0..7));
+        assert_eq!(v.0[0], (0..5));
+        assert_eq!(v.1[0], (105..107));
+
+        let v = rm.destination_ranges(&(5..15));
+        assert!(v.0.is_empty());
+        assert_eq!(v.1[0], (105..115));
+
+        let v = rm.destination_ranges(&(5..16));
+        assert_eq!(v.0[0], (15..16));
+        assert_eq!(v.1[0], (105..115));
+
+        let v = rm.destination_ranges(&(15..16));
+        assert_eq!(v.0[0], (15..16));
+        assert!(v.1.is_empty());
     }
 }

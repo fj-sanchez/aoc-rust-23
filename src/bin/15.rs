@@ -1,9 +1,9 @@
 use indexmap::IndexMap;
 use nom::{
     character::complete::{alpha1, char, one_of, u8},
-    combinator::{opt},
-    multi::{separated_list1},
-    sequence::{tuple},
+    combinator::opt,
+    multi::separated_list1,
+    sequence::tuple,
     Finish, IResult,
 };
 
@@ -21,7 +21,7 @@ struct Step {
 
 #[inline]
 fn calculate_hash(current_value: u32, character: char) -> u32 {
-    (((current_value + character as u32) * 17) % 256)
+    ((current_value + character as u32) * 17) % 256
 }
 
 fn parse_input(input: &str) -> IResult<&str, Vec<Step>> {

@@ -1,7 +1,6 @@
-use cached::proc_macro::cached;
+// use cached::proc_macro::cached;
 use num::complex::Complex;
 use std::collections::{HashMap, HashSet, VecDeque};
-use tinyvec::{array_vec, ArrayVec};
 
 use itertools::Itertools;
 
@@ -20,23 +19,14 @@ struct Node {
     direction: Direction,
 }
 
-impl Node {
-    fn exits(self, cell: char) -> ArrayVec<[Direction; 2]> {
-        match cell {
-            '-' if self.direction == UP || self.direction == DOWN => {
-                array_vec!([Direction; 2] => LEFT, RIGHT)
-            }
-            '|' if self.direction == LEFT || self.direction == RIGHT => {
-                array_vec!([Direction; 2] => UP, DOWN)
-            }
-            '/' => {
-                array_vec!([Direction; 2] => -Complex::new(self.direction.im, self.direction.re))
-            }
-            '\\' => {
-                array_vec!([Direction; 2] => Complex::new(self.direction.im, self.direction.re))
-            }
-            _ => array_vec!([Direction; 2] => self.direction),
-        }
+// #[cached] this actually slows it down
+fn exits(direction: Direction, cell: char) -> Vec<Direction> {
+    match cell {
+        '-' if direction == UP || direction == DOWN => vec![LEFT, RIGHT],
+        '|' if direction == LEFT || direction == RIGHT => vec![UP, DOWN],
+        '/' => vec![-Complex::new(direction.im, direction.re)],
+        '\\' => vec![Complex::new(direction.im, direction.re)],
+        _ => vec![direction],
     }
 }
 
@@ -70,7 +60,7 @@ fn count_energized_cells(current_pos: Node, map_data: &HashMap<Complex<i32>, cha
 
     while let Some(node) = boundary.pop_front() {
         visited.insert(node);
-        node.exits(map_data[&node.position])
+        exits(node.direction, map_data[&node.position])
             .iter()
             .for_each(|&exit| {
                 let next_node = Node {
@@ -90,11 +80,11 @@ pub fn part_two(input: &str) -> Option<u32> {
     let map_data: MapData = parse_input(input);
 
     let &bottom_right = map_data.keys().max_by_key(|pos| pos.re + pos.im).unwrap();
-    let top_nodes = (0..bottom_right.re + 1).into_iter().map(|x| Node {
+    let top_nodes = (0..bottom_right.re + 1).map(|x| Node {
         position: Complex::new(x, 0),
         direction: DOWN,
     });
-    let bottom_nodes = (0..bottom_right.re + 1).into_iter().map(|x| Node {
+    let bottom_nodes = (0..bottom_right.re + 1).map(|x| Node {
         position: Complex::new(x, bottom_right.im),
         direction: UP,
     });

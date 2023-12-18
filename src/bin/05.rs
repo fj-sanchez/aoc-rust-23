@@ -170,8 +170,6 @@ pub fn part_two(input: &str) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
-    use std::vec;
-
     use super::*;
 
     #[test]

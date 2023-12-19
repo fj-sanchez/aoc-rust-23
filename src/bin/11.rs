@@ -4,7 +4,6 @@ use pathfinding::matrix::Matrix;
 advent_of_code::solution!(11);
 
 type GalaxiesMap = Matrix<char>;
-
 fn parse_input(input: &str) -> GalaxiesMap {
     Matrix::from_rows(input.lines().map(|c| c.chars())).unwrap()
 }
@@ -26,12 +25,10 @@ fn get_galaxies_coordinates(map: &GalaxiesMap, expand_by: usize) -> Vec<Galaxy> 
         .items()
         .filter(|(_, &c)| c == '#')
         .map(|((row, col), _)| {
-            let total_row_expansion =
-                (expand_by - 1) * expanding_rows.binary_search(&row).unwrap_err();
-            let total_col_expansion =
-                (expand_by - 1) * expanding_columns.binary_search(&col).unwrap_err();
-            let actual_row = row + total_row_expansion;
-            let actual_col = col + total_col_expansion;
+            let expanded_rows = expanding_rows.binary_search(&row).unwrap_err();
+            let expanded_columns = expanding_columns.binary_search(&col).unwrap_err();
+            let actual_row = row + (expand_by - 1) * expanded_rows;
+            let actual_col = col + (expand_by - 1) * expanded_columns;
             (actual_row, actual_col)
         })
         .collect();
@@ -39,22 +36,9 @@ fn get_galaxies_coordinates(map: &GalaxiesMap, expand_by: usize) -> Vec<Galaxy> 
     galaxies
 }
 
-pub fn part_one(input: &str) -> Option<u32> {
+fn solve(input: &str, expand_by: usize) -> Option<usize> {
     let map = parse_input(input);
-    let galaxies = get_galaxies_coordinates(&map, 2);
-
-    Some(
-        galaxies
-            .iter()
-            .tuple_combinations()
-            .map(|(&(ra, ca), &(rb, cb))| ra.abs_diff(rb) + ca.abs_diff(cb))
-            .sum::<usize>() as u32,
-    )
-}
-
-pub fn part_two(input: &str) -> Option<usize> {
-    let map = parse_input(input);
-    let galaxies = get_galaxies_coordinates(&map, 1000000);
+    let galaxies = get_galaxies_coordinates(&map, expand_by);
 
     Some(
         galaxies
@@ -63,6 +47,14 @@ pub fn part_two(input: &str) -> Option<usize> {
             .map(|(&(ra, ca), &(rb, cb))| ra.abs_diff(rb) + ca.abs_diff(cb))
             .sum::<usize>(),
     )
+}
+
+pub fn part_one(input: &str) -> Option<usize> {
+    solve(input, 2)
+}
+
+pub fn part_two(input: &str) -> Option<usize> {
+    solve(input, 1000000)
 }
 
 #[cfg(test)]

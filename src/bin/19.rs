@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
-    ops::{Range},
+    ops::Range,
 };
 
 use nom::{
@@ -120,10 +120,16 @@ fn split_range_by_rule(ranges: &mut PartRanges, rule: &Rule) -> PartRanges {
     let mut excluded_ranges = ranges.clone();
     if rule.cmp == '<' {
         ranges.insert(rule.attribute, ranges[&rule.attribute].start..rule.value);
-        excluded_ranges.insert(rule.attribute, rule.value..ranges[&rule.attribute].end);
+        excluded_ranges.insert(
+            rule.attribute,
+            rule.value..excluded_ranges[&rule.attribute].end,
+        );
     } else {
-        ranges.insert(rule.attribute, rule.value..ranges[&rule.attribute].start);
-        excluded_ranges.insert(rule.attribute, rule.value..ranges[&rule.attribute].end);
+        ranges.insert(rule.attribute, rule.value + 1..ranges[&rule.attribute].end);
+        excluded_ranges.insert(
+            rule.attribute,
+            excluded_ranges[&rule.attribute].start..rule.value + 1,
+        );
     }
     excluded_ranges
 }
@@ -146,41 +152,28 @@ pub fn part_two(input: &str) -> Option<usize> {
         ('s', 1..4001),
     ]);
 
-    let mut accepted_combinations: usize = 0;
-
     let mut q: VecDeque<(&str, PartRanges)> = VecDeque::new();
     q.push_back((&"in", possible_ranges));
 
+    let mut accepted_combinations: usize = 0;
     while let Some((wf_name, ranges)) = q.pop_front() {
-        if wf_name == "R" {
-            continue;
-        } else if wf_name == "A" {
-            accepted_combinations += get_combinations(&ranges);
-            continue;
-        }
-
-        let wf = &workflows[wf_name];
-        let excluded_ranges = wf.rules.iter().fold(ranges, |mut acc, rule| {
-            let mut excluded_ranges = acc.clone();
-            if rule.cmp == '<' {
-                acc.insert(rule.attribute, acc[&rule.attribute].start..rule.value);
-                excluded_ranges.insert(
-                    rule.attribute,
-                    rule.value..excluded_ranges[&rule.attribute].end,
-                );
-            } else {
-                acc.insert(rule.attribute, rule.value + 1..acc[&rule.attribute].end);
-                excluded_ranges.insert(
-                    rule.attribute,
-                    excluded_ranges[&rule.attribute].start..rule.value + 1,
-                );
+        match wf_name {
+            "R" => continue,
+            "A" => {
+                accepted_combinations += get_combinations(&ranges);
+                continue;
             }
+            _ => {
+                let wf = &workflows[wf_name];
+                let excluded_ranges = wf.rules.iter().fold(ranges, |mut acc, rule| {
+                    let excluded_ranges = split_range_by_rule(&mut acc, rule);
+                    q.push_back((&rule.next_workflow, acc));
+                    excluded_ranges
+                });
 
-            q.push_back((&rule.next_workflow, acc));
-            excluded_ranges
-        });
-
-        q.push_back((&wf.fallback, excluded_ranges))
+                q.push_back((&wf.fallback, excluded_ranges))
+            }
+        }
     }
 
     Some(accepted_combinations)

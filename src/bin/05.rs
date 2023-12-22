@@ -160,7 +160,6 @@ pub fn part_two(input: &str) -> Option<u32> {
                     pending_mapping = unmapped.clone();
                 }
                 pending_mapping.append(&mut mapped);
-                pending_mapping.dedup();
                 pending_mapping
             });
 

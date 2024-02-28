@@ -73,7 +73,7 @@ fn get_start_pipe_type(map: &Map, start_coords: &Coord) -> Pipe {
         .unwrap()
 }
 
-fn get_neighbours_pipes_coords(coords: &Coord, map: &Vec<Vec<char>>) -> Vec<Coord> {
+fn get_neighbours_pipes_coords(coords: &Coord, map: &[Vec<char>]) -> Vec<Coord> {
     let check_deltas: [(i32, i32); 4] = [(0, -1), (1, 0), (0, 1), (-1, 0)];
     check_deltas
         .iter()

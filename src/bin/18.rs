@@ -1,6 +1,3 @@
-use std::collections::BTreeSet;
-
-use itertools::Itertools;
 use nom::character::complete::{hex_digit1, newline, space1};
 use nom::combinator::{map, opt};
 use nom::multi::many1;
@@ -10,7 +7,6 @@ use nom::{
     Finish, IResult,
 };
 use num::Complex;
-use pathfinding::grid::Grid;
 
 advent_of_code::solution!(18);
 
@@ -65,52 +61,51 @@ fn parse_input(input: &str) -> IResult<&str, Vec<DigMove>> {
     Ok((i, dig_moves))
 }
 
-pub fn part_one(input: &str) -> Option<usize> {
-    let (_, dig_moves) = parse_input(input).finish().unwrap();
-
-    let trenches = &mut BTreeSet::new();
-
-    dig_moves
-        .iter()
-        .fold((0isize, 0isize), |(mut x, mut y), dig_move| {
-            for _ in 0..dig_move.delta {
-                x += dig_move.direction.re;
-                y += dig_move.direction.im;
-                trenches.insert(Trench {
-                    x,
-                    y,
-                    colour: &dig_move.colour,
-                });
-            }
-
-            (x, y)
-        });
-
-    let (_, _, inner_area) = trenches.iter().tuple_windows().fold(
-        (true, false, 0),
-        |(is_inside, is_edge, area), (a, b)| match (is_inside, is_edge, a, b) {
-            // on column change
-            (_, _, a, b) if a.x != b.x => (true, false, area),
-            // on edge start
-            (_, false, a, b) if a.y + 1 == b.y => (is_inside, true, area),
-            // on edge end when transition to inside
-            (false, true, a, b) if a.y + 1 != b.y => (!is_inside, false, b.y - a.y - 1 + area),
-            // on edge end when transition to outside
-            (true, true, a, b) if a.y + 1 != b.y => (!is_inside, false, area),
-            // inside
-            (true, false, a, b) => (false, false, b.y - a.y - 1 + area),
-            // outside
-            (false, false, _, _) => (true, is_edge, area),
-            // on edge
-            (_, true, _, _) => (is_inside, is_edge, area),
-        },
-    );
-
-    trenches.len().checked_add_signed(inner_area)
+fn get_inner_area(dig_moves: &[DigMove]) -> isize {
+    let (area, _) =
+        dig_moves
+            .iter()
+            .rev()
+            .fold((0, Complex::new(0, 0)), |(inner, prev), dig_move| {
+                let end_coords = prev - dig_move.direction.scale(dig_move.delta as isize);
+                let tmp = (prev.re * end_coords.im) - (end_coords.re * prev.im);
+                (inner + tmp, end_coords)
+            });
+    area.abs() / 2
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_one(input: &str) -> Option<isize> {
+    let (_, dig_moves) = parse_input(input).finish().unwrap();
+
+    let inner_area = get_inner_area(&dig_moves);
+    let perimeter: isize = dig_moves.iter().map(|t| t.delta).sum::<u32>() as isize;
+    let total_area = inner_area + perimeter / 2 + 1;
+
+    Some(total_area)
+}
+
+pub fn part_two(input: &str) -> Option<isize> {
+    let (_, dig_moves) = &mut parse_input(input).finish().unwrap();
+
+    dig_moves.iter_mut().for_each(|trench| {
+        trench.delta = trench.colour >> 4;
+        trench.direction = match trench.colour & 0b1111 {
+            0 => RIGHT,
+            1 => DOWN,
+            2 => LEFT,
+            3 => UP,
+            _ => panic!(
+                "Invalid direction decoded from colour: colour={:#08X}",
+                trench.colour
+            ),
+        }
+    });
+
+    let inner_area = get_inner_area(dig_moves);
+    let perimeter: isize = dig_moves.iter().map(|t| t.delta).sum::<u32>() as isize;
+    let total_area = inner_area + perimeter / 2 + 1;
+
+    Some(total_area)
 }
 
 #[cfg(test)]
@@ -126,6 +121,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(952408144115));
     }
 }

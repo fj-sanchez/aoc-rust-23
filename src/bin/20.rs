@@ -177,7 +177,7 @@ pub fn part_two(input: &str) -> Option<u64> {
             if destination == "qb" && signal {
                 qb_input_cycles.entry(source.clone()).or_insert(i);
                 if qb_input_cycles.len() == 4 {
-                    println!("All 4 inputs to qb seen as high: {:?}", qb_input_cycles);
+                    // println!("All 4 inputs to qb seen as high: {:?}", qb_input_cycles);
                     found = true;
                 }
             }

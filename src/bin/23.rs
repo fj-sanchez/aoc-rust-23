@@ -1,4 +1,7 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::{
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    vec,
+};
 
 use pathfinding::matrix::{
     directions::{DIRECTIONS_4, E, N, S, W},
@@ -8,11 +11,15 @@ use pathfinding::matrix::{
 advent_of_code::solution!(23);
 
 type Coord = (usize, usize);
+type ValidMovesFn = fn(Coord, &Matrix<char>) -> Vec<Coord>;
+type Edge = Vec<(Coord, usize)>;
+type Graph = BTreeMap<Coord, Edge>;
 
 #[derive(Debug, Default, Clone)]
 struct Search {
     head: Coord,
     seen: BTreeSet<Coord>,
+    cost: usize,
 }
 
 fn parse_input(input: &str) -> Matrix<char> {
@@ -28,8 +35,6 @@ fn find_start_end(map: &Matrix<char>) -> ((usize, usize), (usize, usize)) {
         .unwrap();
     (start, end)
 }
-
-type ValidMovesFn = fn((usize, usize), &Matrix<char>) -> Vec<(usize, usize)>;
 
 fn valid_moves_with_slopes(coord: Coord, map: &Matrix<char>) -> Vec<Coord> {
     const DIRECTION_OPPOSITE: [char; 4] = ['<', '^', '>', 'v'];
@@ -55,41 +60,114 @@ fn valid_moves_with_slopes(coord: Coord, map: &Matrix<char>) -> Vec<Coord> {
     next_moves
 }
 
+fn valid_moves_without_slopes(coord: Coord, map: &Matrix<char>) -> Vec<Coord> {
+    map.neighbours(coord, false)
+        .filter(|&c| map.get(c).unwrap() != &'#')
+        .collect()
+}
 
-fn find_lengths(
-    start: (usize, usize),
+fn is_junction(coord: Coord, map: &Matrix<char>) -> bool {
+    valid_moves_without_slopes(coord, map).len() > 2
+}
+
+fn create_graph_from_map(
+    start: Coord,
+    end: Coord,
+    map: &Matrix<char>,
     valid_moves_fn: ValidMovesFn,
-    map: Matrix<char>,
-    end: (usize, usize),
-) -> Vec<usize> {
+) -> Graph {
+    // create a node per junction in the graph and initialise their edges
+    let mut graph: Graph = map
+        .items()
+        .filter(|&(.., kind)| kind != &'#')
+        .filter(|&(coord, ..)| is_junction(coord, map))
+        .map(|(c, ..)| (c, vec![]))
+        .collect();
+    graph.insert(start, vec![]);
+    graph.insert(end, vec![]);
+
+    let mut seen = BTreeSet::<Coord>::new();
+    let mut searches = VecDeque::<(Coord, Coord)>::new();
+    searches.push_back((start, map.move_in_direction(start, S).unwrap()));
+    seen.insert(start);
+
+    while let Some((junction, junction_exit)) = searches.pop_front() {
+        let mut section_length = 1;
+        let mut next_in_search = junction_exit;
+        loop {
+            let next_moves = valid_moves_fn(next_in_search, map)
+                .iter()
+                .filter(|&coord| coord != &junction)
+                .filter(|&coord| !seen.contains(coord) || graph.contains_key(coord))
+                .copied()
+                .collect::<Vec<_>>();
+
+            // if next_in_search is junction, create edge and enqueue searches from exits
+            if graph.contains_key(&next_in_search) {
+                // println!(
+                //     "From {:?} to {:?} with cost {}",
+                //     &junction, &next_in_search, section_length
+                // );
+                graph
+                    .get_mut(&junction)
+                    .unwrap()
+                    .push((next_in_search, section_length));
+                for next_move in next_moves {
+                    searches.push_front((next_in_search, next_move));
+                }
+                break;
+            } else if !next_moves.is_empty() {
+                assert!(
+                    next_moves.len() == 1,
+                    "next_in_search: {:?}, next_moves: {:?}",
+                    next_in_search,
+                    next_moves
+                );
+
+                section_length += 1;
+                seen.insert(next_in_search);
+                next_in_search = *next_moves.first().unwrap();
+            }
+        }
+    }
+    graph
+}
+
+fn find_lengths_in_graph(start: (usize, usize), end: (usize, usize), graph: Graph) -> Vec<usize> {
     let mut searches = vec![Search {
         head: start,
         seen: BTreeSet::from_iter([start]),
+        cost: 0,
     }];
     let mut active_searches = VecDeque::<usize>::new();
     active_searches.push_back(0);
 
     while let Some(active_search_index) = active_searches.pop_front() {
         let active_search = searches.get_mut(active_search_index).unwrap();
-        let next_moves = valid_moves_fn(active_search.head, &map)
+        let next_nodes = graph
+            .get(&active_search.head)
+            .unwrap()
             .iter()
-            .filter(|coord| !active_search.seen.contains(coord))
+            .filter(|(coord, ..)| !active_search.seen.contains(coord))
             .copied()
             .collect::<Vec<_>>();
 
-        if let Some(&next_move) = next_moves.first() {
-            active_search.head = next_move;
-            active_search.seen.insert(next_move);
-            active_searches.push_back(active_search_index);
+        if let Some(&(next_node, next_node_cost)) = next_nodes.first() {
+            active_search.head = next_node;
+            active_search.seen.insert(next_node);
+            active_search.cost += next_node_cost;
+            active_searches.push_front(active_search_index);
 
             // if more than 1 move found, then fork search
-            for &next_move in next_moves.iter().skip(1) {
+            for &(other_node, other_cost) in next_nodes.iter().skip(1) {
                 let mut new_active_search = searches[active_search_index].clone();
-                new_active_search.head = next_move;
-                new_active_search.seen.remove(next_moves.first().unwrap());
-                new_active_search.seen.insert(next_move);
+                new_active_search.head = other_node;
+                new_active_search.seen.remove(&next_node);
+                new_active_search.seen.insert(other_node);
+                new_active_search.cost -= next_node_cost;
+                new_active_search.cost += other_cost;
                 searches.push(new_active_search);
-                active_searches.push_back(searches.len() - 1);
+                active_searches.push_front(searches.len() - 1);
             }
         }
     }
@@ -97,13 +175,7 @@ fn find_lengths(
     searches
         .iter()
         .filter(|search| search.head == end)
-        .map(|search| search.seen.len() - 1)
-        .collect()
-}
-
-fn valid_moves_without_slopes(coord: Coord, map: &Matrix<char>) -> Vec<Coord> {
-    map.neighbours(coord, false)
-        .filter(|&c| map.get(c).unwrap() != &'#')
+        .map(|search| search.cost)
         .collect()
 }
 
@@ -112,7 +184,8 @@ pub fn part_one(input: &str) -> Option<usize> {
     let (start, end) = find_start_end(&map);
 
     let valid_moves_fn = valid_moves_with_slopes;
-    let lengths = find_lengths(start, valid_moves_fn, map, end);
+    let graph = create_graph_from_map(start, end, &map, valid_moves_fn);
+    let lengths = find_lengths_in_graph(start, end, graph);
 
     lengths.iter().max().copied()
 }
@@ -122,7 +195,8 @@ pub fn part_two(input: &str) -> Option<usize> {
     let (start, end) = find_start_end(&map);
 
     let valid_moves_fn = valid_moves_without_slopes;
-    let lengths = find_lengths(start, valid_moves_fn, map, end);
+    let graph = create_graph_from_map(start, end, &map, valid_moves_fn);
+    let lengths = find_lengths_in_graph(start, end, graph);
 
     lengths.iter().max().copied()
 }

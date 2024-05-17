@@ -113,7 +113,9 @@ fn create_graph_from_map(
                     .unwrap()
                     .push((next_in_search, section_length));
                 for next_move in next_moves {
-                    searches.push_front((next_in_search, next_move));
+                    if !seen.contains(&next_move) {
+                        searches.push_front((next_in_search, next_move));
+                    }
                 }
                 break;
             } else if !next_moves.is_empty() {
@@ -127,6 +129,8 @@ fn create_graph_from_map(
                 section_length += 1;
                 seen.insert(next_in_search);
                 next_in_search = *next_moves.first().unwrap();
+            } else {
+                break;
             }
         }
     }
@@ -195,8 +199,21 @@ pub fn part_two(input: &str) -> Option<usize> {
     let (start, end) = find_start_end(&map);
 
     let valid_moves_fn = valid_moves_without_slopes;
-    let graph = create_graph_from_map(start, end, &map, valid_moves_fn);
-    let lengths = find_lengths_in_graph(start, end, graph);
+    let directed_graph = create_graph_from_map(start, end, &map, valid_moves_fn);
+    let mut undirected_graph = directed_graph.clone();
+    for (node, edges) in directed_graph {
+        for (edge, cost) in edges {
+            undirected_graph.get_mut(&edge).unwrap().push((node, cost));
+        }
+    }
+
+    let pre_exit_edges = undirected_graph.get(&end).cloned().unwrap();
+    for (pre_exit_edge, cost) in pre_exit_edges {
+        undirected_graph
+            .entry(pre_exit_edge)
+            .and_modify(|edges| *edges = vec![(end, cost)]);
+    }
+    let lengths = find_lengths_in_graph(start, end, undirected_graph);
 
     lengths.iter().max().copied()
 }

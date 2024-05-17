@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     vec,
 };
 
@@ -15,11 +15,25 @@ type ValidMovesFn = fn(Coord, &Matrix<char>) -> Vec<Coord>;
 type Edge = Vec<(Coord, usize)>;
 type Graph = BTreeMap<Coord, Edge>;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Copy)]
 struct Search {
     head: Coord,
-    seen: BTreeSet<Coord>,
+    seen: u64,
     cost: usize,
+}
+
+impl Search {
+    fn seen_contains(self, node_index: usize) -> bool {
+        (self.seen & (1 << node_index)) > 0
+    }
+
+    fn seen_insert(&mut self, node_index: usize) {
+        self.seen |= 1 << node_index;
+    }
+
+    fn seen_remove(&mut self, node_index: usize) {
+        self.seen &= !(1 << node_index);
+    }
 }
 
 fn parse_input(input: &str) -> Matrix<char> {
@@ -138,9 +152,14 @@ fn create_graph_from_map(
 }
 
 fn find_lengths_in_graph(start: (usize, usize), end: (usize, usize), graph: Graph) -> Vec<usize> {
+    let node_index_lookup = graph
+        .keys()
+        .enumerate()
+        .map(|(idx, coord)| (coord, idx))
+        .collect::<BTreeMap<&Coord, usize>>();
     let mut searches = vec![Search {
         head: start,
-        seen: BTreeSet::from_iter([start]),
+        seen: 1,
         cost: 0,
     }];
     let mut active_searches = VecDeque::<usize>::new();
@@ -152,22 +171,22 @@ fn find_lengths_in_graph(start: (usize, usize), end: (usize, usize), graph: Grap
             .get(&active_search.head)
             .unwrap()
             .iter()
-            .filter(|(coord, ..)| !active_search.seen.contains(coord))
+            .filter(|(coord, ..)| !active_search.seen_contains(node_index_lookup[coord]))
             .copied()
             .collect::<Vec<_>>();
 
         if let Some(&(next_node, next_node_cost)) = next_nodes.first() {
             active_search.head = next_node;
-            active_search.seen.insert(next_node);
+            active_search.seen_insert(node_index_lookup[&next_node]);
             active_search.cost += next_node_cost;
             active_searches.push_front(active_search_index);
 
             // if more than 1 move found, then fork search
             for &(other_node, other_cost) in next_nodes.iter().skip(1) {
-                let mut new_active_search = searches[active_search_index].clone();
+                let mut new_active_search = searches[active_search_index];
                 new_active_search.head = other_node;
-                new_active_search.seen.remove(&next_node);
-                new_active_search.seen.insert(other_node);
+                new_active_search.seen_remove(node_index_lookup[&next_node]);
+                new_active_search.seen_insert(node_index_lookup[&other_node]);
                 new_active_search.cost -= next_node_cost;
                 new_active_search.cost += other_cost;
                 searches.push(new_active_search);
@@ -200,6 +219,7 @@ pub fn part_two(input: &str) -> Option<usize> {
 
     let valid_moves_fn = valid_moves_without_slopes;
     let directed_graph = create_graph_from_map(start, end, &map, valid_moves_fn);
+    println!("There are {} nodes", directed_graph.len());
     let mut undirected_graph = directed_graph.clone();
     for (node, edges) in directed_graph {
         for (edge, cost) in edges {

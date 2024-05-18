@@ -157,7 +157,7 @@ pub fn part_two(input: &str) -> Option<u32> {
                         mapped.extend(destination_ranges);
                         unmapped.extend(remaining);
                     }
-                    pending_mapping = unmapped.clone();
+                    pending_mapping.clone_from(&unmapped);
                 }
                 pending_mapping.append(&mut mapped);
                 pending_mapping

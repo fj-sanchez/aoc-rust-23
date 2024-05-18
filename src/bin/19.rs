@@ -153,7 +153,7 @@ pub fn part_two(input: &str) -> Option<usize> {
     ]);
 
     let mut q: VecDeque<(&str, PartRanges)> = VecDeque::new();
-    q.push_back((&"in", possible_ranges));
+    q.push_back(("in", possible_ranges));
 
     let mut accepted_combinations: usize = 0;
     while let Some((wf_name, ranges)) = q.pop_front() {

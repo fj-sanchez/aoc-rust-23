@@ -22,13 +22,6 @@ struct DigMove {
     colour: u32,
 }
 
-#[derive(Ord, Eq, PartialEq, PartialOrd)]
-struct Trench<'a> {
-    x: isize,
-    y: isize,
-    colour: &'a u32,
-}
-
 fn dig_move(input: &str) -> IResult<&str, DigMove> {
     let dir = map(one_of("URDL"), |d| match d {
         'U' => UP,

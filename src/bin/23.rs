@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     vec,
 };
 
@@ -165,8 +165,21 @@ fn find_lengths_in_graph(start: (usize, usize), end: (usize, usize), graph: Grap
     let mut active_searches = VecDeque::<usize>::new();
     active_searches.push_back(0);
 
+    // FIXME: cache attempt doesn't work, wrong key
+    // let mut cache = BTreeMap::<(usize, u64), usize>::new();
+    // cache.insert((node_index_lookup[&start], 1), 0);
+
     while let Some(active_search_index) = active_searches.pop_front() {
         let active_search = searches.get_mut(active_search_index).unwrap();
+
+        // if let Some(cached_cost) =
+        //     cache.get(&(node_index_lookup[&active_search.head], active_search.seen))
+        // {
+        //     if cached_cost > &active_search.cost {
+        //         break;
+        //     }
+        // }
+
         let next_nodes = graph
             .get(&active_search.head)
             .unwrap()
@@ -179,6 +192,14 @@ fn find_lengths_in_graph(start: (usize, usize), end: (usize, usize), graph: Grap
             active_search.head = next_node;
             active_search.seen_insert(node_index_lookup[&next_node]);
             active_search.cost += next_node_cost;
+            // cache
+            //     .entry((node_index_lookup[&active_search.head], active_search.seen))
+            //     .and_modify(|cost| {
+            //         if *cost < active_search.cost {
+            //             *cost = active_search.cost;
+            //         }
+            //     })
+            //     .or_insert(active_search.cost);
             active_searches.push_front(active_search_index);
 
             // if more than 1 move found, then fork search
@@ -189,6 +210,17 @@ fn find_lengths_in_graph(start: (usize, usize), end: (usize, usize), graph: Grap
                 new_active_search.seen_insert(node_index_lookup[&other_node]);
                 new_active_search.cost -= next_node_cost;
                 new_active_search.cost += other_cost;
+                // cache
+                //     .entry((
+                //         node_index_lookup[&new_active_search.head],
+                //         new_active_search.seen,
+                //     ))
+                //     .and_modify(|cost| {
+                //         if *cost < new_active_search.cost {
+                //             *cost = new_active_search.cost;
+                //         }
+                //     })
+                //     .or_insert(new_active_search.cost);
                 searches.push(new_active_search);
                 active_searches.push_front(searches.len() - 1);
             }
@@ -219,7 +251,6 @@ pub fn part_two(input: &str) -> Option<usize> {
 
     let valid_moves_fn = valid_moves_without_slopes;
     let directed_graph = create_graph_from_map(start, end, &map, valid_moves_fn);
-    println!("There are {} nodes", directed_graph.len());
     let mut undirected_graph = directed_graph.clone();
     for (node, edges) in directed_graph {
         for (edge, cost) in edges {

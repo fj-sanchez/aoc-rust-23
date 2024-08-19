@@ -58,7 +58,7 @@ pub fn part_one(input: &str) -> Option<usize> {
         }
     }
 
-    const SAMPLE_SIZE: usize = 50;
+    const SAMPLE_SIZE: usize = 100;
 
     let component_names: Vec<_> = components_graph.keys().cloned().collect();
     let mut rng = StdRng::seed_from_u64(0);

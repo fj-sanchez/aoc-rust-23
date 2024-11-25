@@ -1,7 +1,5 @@
 use std::cmp;
 
-use nalgebra::iter::RowIter;
-
 advent_of_code::solution!(13);
 
 #[derive(Debug, Default)]
@@ -37,10 +35,11 @@ fn parse_input(input: &str) -> Vec<Pattern> {
         .collect()
 }
 
-fn find_reflection(values: &[u32]) -> Option<usize> {
-    (1..values.len()).find(|&i| {
-        let reflection_size = cmp::min(i, values.len() - i);
-        let (left, right) = values.split_at(i);
+fn find_reflection_different_than(values: &[u32], ignore: u32) -> Option<u32> {
+    let length = values.len() as u32;
+    (1..length).filter(|&v| v != ignore).find(|&i| {
+        let reflection_size = cmp::min(i, length - i) as usize;
+        let (left, right) = values.split_at(i as usize);
         left.iter()
             .rev()
             .take(reflection_size)
@@ -48,22 +47,26 @@ fn find_reflection(values: &[u32]) -> Option<usize> {
     })
 }
 
-fn summarize_pattern(pattern: &Pattern) -> u32 {
+fn summarize_pattern(pattern: &Pattern) -> Option<u32> {
+    summarize_pattern_different_than(pattern, 0)
+}
+
+fn summarize_pattern_different_than(pattern: &Pattern, ignore: u32) -> Option<u32> {
     // Check for vertical reflection (columns)
-    if let Some(col) = find_reflection(&pattern.columns) {
-        return col as u32;
+    if let Some(col) = find_reflection_different_than(&pattern.columns, ignore % 100) {
+        return Some(col);
     }
 
     // Check for horizontal reflection (rows)
-    if let Some(row) = find_reflection(&pattern.rows) {
-        return row as u32 * 100;
+    if let Some(row) = find_reflection_different_than(&pattern.rows, ignore / 100) {
+        return Some(row * 100);
     }
 
-    0
+    None
 }
 
 fn find_smudged_reflection(pattern: &Pattern) -> u32 {
-    let original_result = summarize_pattern(pattern);
+    let original_result = summarize_pattern(pattern).unwrap();
     let row_num_bits = pattern.columns.len();
     // let col_num_bits = pattern.rows.len();
 
@@ -74,24 +77,17 @@ fn find_smudged_reflection(pattern: &Pattern) -> u32 {
 
     // Try each position for a smudge
     for row_ix in 0..fixed_pattern.rows.len() {
-        for i in 0..row_num_bits {
-            fixed_pattern.rows[row_ix] ^= 1 << i;
-            fixed_pattern.columns[i] ^= 1 << row_ix;
+        for bit_ix in 0..row_num_bits {
+            fixed_pattern.rows[row_ix] ^= 1 << bit_ix;
+            fixed_pattern.columns[bit_ix] ^= 1 << row_ix;
 
-            if let Some(col) = find_reflection(&fixed_pattern.columns) {
-                if col as u32 != original_result {
-                    return col as u32;
-                }
+            if let Some(result) = summarize_pattern_different_than(&fixed_pattern, original_result)
+            {
+                return result;
             }
 
-            if let Some(row) = find_reflection(&fixed_pattern.rows) {
-                if (row as u32) * 100 != original_result {
-                    return (row as u32) * 100;
-                }
-            }
-
-            fixed_pattern.rows[row_ix] ^= 1 << i;
-            fixed_pattern.columns[i] ^= 1 << row_ix;
+            fixed_pattern.rows[row_ix] ^= 1 << bit_ix;
+            fixed_pattern.columns[bit_ix] ^= 1 << row_ix;
         }
     }
 
@@ -100,7 +96,13 @@ fn find_smudged_reflection(pattern: &Pattern) -> u32 {
 
 pub fn part_one(input: &str) -> Option<u32> {
     let patterns = parse_input(input);
-    Some(patterns.iter().map(summarize_pattern).sum())
+    Some(
+        patterns
+            .iter()
+            .map(summarize_pattern)
+            .map(|v| v.unwrap())
+            .sum(),
+    )
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
